@@ -1,0 +1,4 @@
+JWT_SECRET=supersecretjwtkey
+GEMINI_API_KEY="AIzaSyDAWIpGbz22K27656t7zvlDMvoL-yac0R0"
+PORT=5000
+MONGO_URI=mongodb+srv://AIPlatformApp:siddhant@cluster0.mitmkgs.mongodb.net/aiLearningDB?retryWrites=true&w=majority

@@ -1,0 +1,43 @@
+buildscript {
+    ext {
+        buildToolsVersion = "36.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.1.12297006"
+        // define a single kotlin version for all modules
+        kotlinVersion = "2.1.20"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // use the ext property for each plugin to ensure consistency
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+// ensure every kotlin subproject uses the same stdlib version
+subprojects { proj ->
+    if (proj.plugins.hasPlugin('kotlin') || proj.plugins.hasPlugin('org.jetbrains.kotlin.jvm')) {
+        proj.dependencies {
+            implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+        }
+    }
+}
+
+// add repositories used by all projects, including the local AsyncStorage artifact
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri(rootProject.file('../node_modules/@react-native-async-storage/async-storage/android/local_repo'))
+        }
+    }
+}
