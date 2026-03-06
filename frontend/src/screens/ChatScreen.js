@@ -9,10 +9,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert
 } from "react-native";
+import Clipboard from "@react-native-clipboard/clipboard";
 import { askGemini } from "../services/gemini";
 import { updateStreak } from "../services/streakService";
 import Markdown from "react-native-markdown-display";
+import TypingIndicator from "../components/TypeIndicator";
 
 export default function ChatScreen() {
   const [message, setMessage] = useState("");
@@ -20,7 +23,7 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
 
   const scrollRef = useRef(null);
-
+    
   const sendMessage = async () => {
     if (!message.trim()) return;
 
@@ -82,8 +85,8 @@ export default function ChatScreen() {
         ))}
 
         {loading && (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="small" color="#4f46e5" />
+          <View style={styles.botBubble}>
+            <TypingIndicator />
           </View>
         )}
       </ScrollView>

@@ -1,4 +1,4 @@
-const GEMINI_API_KEY = "AIzaSyDAWIpGbz22K27656t7zvlDMvoL-yac0R0";
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 
 console.log("🤖 GEMINI SERVICE INITIALIZED");
 

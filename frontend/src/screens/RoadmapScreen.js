@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,23 +7,36 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
-import Markdown from "react-native-markdown-display";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RoadmapScreen() {
   const [goal, setGoal] = useState("");
-  const [roadmap, setRoadmap] = useState("");
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const scrollRef = useRef(null);
+  useEffect(() => {
+    loadSavedRoadmap();
+  }, []);
 
+  // 🔹 Load saved roadmap
+  const loadSavedRoadmap = async () => {
+    const saved = await AsyncStorage.getItem("roadmapTasks");
+    if (saved) {
+      setTasks(JSON.parse(saved));
+    }
+  };
+
+  // 🔹 Save roadmap
+  const saveRoadmap = async (newTasks) => {
+    await AsyncStorage.setItem("roadmapTasks", JSON.stringify(newTasks));
+  };
+
+  // 🔹 Generate roadmap
   const generateRoadmap = async () => {
     if (!goal.trim()) return;
 
     setLoading(true);
-    setRoadmap("");
 
     try {
       const response = await fetch("http://10.0.2.2:5000/api/roadmap", {
@@ -31,85 +44,108 @@ export default function RoadmapScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           goal: `${goal}. 
-          
-          Create a clear step-by-step roadmap.
-          Use headings, bullet points, and short explanations.
-          Add relevant emojis wherever necessary to make it engaging.
-          Make it visually clean and motivating.`,
+          Give only bullet points.
+          Keep each point short.
+          Add emojis.`,
         }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        setRoadmap(data.message || "❌ Failed to generate roadmap.");
-      } else {
-        setRoadmap(data.roadmap);
+      if (response.ok) {
+        const lines = data.roadmap
+          .split("\n")
+          .filter((line) => line.trim().length > 0);
+
+        const formattedTasks = lines.map((item, index) => ({
+          id: index,
+          text: item.replace(/^[-•\d. ]+/, ""),
+          completed: false,
+        }));
+
+        setTasks(formattedTasks);
+        saveRoadmap(formattedTasks);
       }
     } catch (error) {
-      setRoadmap("⚠️ Network error. Please check backend connection.");
+      console.log("Error:", error);
     }
 
     setLoading(false);
   };
 
+  // 🔹 Toggle task
+  const toggleTask = (id) => {
+    const updated = tasks.map((task) =>
+      task.id === id ? { ...task, completed: !task.completed } : task
+    );
+
+    setTasks(updated);
+    saveRoadmap(updated);
+  };
+
+  const completedCount = tasks.filter((t) => t.completed).length;
+  const progress =
+    tasks.length > 0
+      ? Math.round((completedCount / tasks.length) * 100)
+      : 0;
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={{ padding: 20 }}
-        onContentSizeChange={() =>
-          scrollRef.current?.scrollToEnd({ animated: true })
-        }
-      >
-        {/* Title */}
-        <Text style={styles.title}>🛣️ Learning Roadmap</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>🛣️ Learning Roadmap</Text>
 
-        {/* Input */}
-        <TextInput
-          style={styles.input}
-          placeholder="What do you want to learn? 🚀"
-          placeholderTextColor="#888"
-          value={goal}
-          onChangeText={setGoal}
-        />
+      <TextInput
+        style={styles.input}
+        placeholder="What do you want to learn? 🚀"
+        placeholderTextColor="#888"
+        value={goal}
+        onChangeText={setGoal}
+      />
 
-        {/* Button */}
-        <TouchableOpacity style={styles.button} onPress={generateRoadmap}>
-          <Text style={styles.buttonText}>✨ Generate Roadmap</Text>
-        </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={generateRoadmap}>
+        <Text style={styles.buttonText}>✨ Generate Roadmap</Text>
+      </TouchableOpacity>
 
-        {/* Loader */}
-        {loading && (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#4f46e5" />
-            <Text style={styles.loadingText}>
-              Generating your personalized roadmap... 🚀
+      {loading && (
+        <ActivityIndicator size="large" color="#4f46e5" style={{ marginTop: 15 }} />
+      )}
+
+      {/* Progress Bar */}
+      {tasks.length > 0 && (
+        <View style={styles.progressContainer}>
+          <Text style={styles.progressText}>
+            📊 Progress: {progress}%
+          </Text>
+          <View style={styles.progressBar}>
+            <View
+              style={[styles.progressFill, { width: `${progress}%` }]}
+            />
+          </View>
+        </View>
+      )}
+
+      <ScrollView style={{ marginTop: 15 }}>
+        {tasks.map((task) => (
+          <TouchableOpacity
+            key={task.id}
+            style={styles.taskItem}
+            onPress={() => toggleTask(task.id)}
+          >
+            <Text style={styles.checkbox}>
+              {task.completed ? "✅" : "⬜"}
             </Text>
-          </View>
-        )}
 
-        {/* Roadmap Output */}
-        {roadmap ? (
-          <View style={styles.roadmapCard}>
-            <Markdown style={markdownStyles}>
-              {roadmap}
-            </Markdown>
-          </View>
-        ) : (
-          !loading && (
-            <View style={styles.placeholderCard}>
-              <Text style={styles.placeholderText}>
-                🎯 Your roadmap will appear here...
-              </Text>
-            </View>
-          )
-        )}
+            <Text
+              style={[
+                styles.taskText,
+                task.completed && styles.completedText,
+              ]}
+            >
+              {task.text}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -117,6 +153,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0f172a",
+    padding: 20,
   },
 
   title: {
@@ -128,10 +165,9 @@ const styles = StyleSheet.create({
 
   input: {
     backgroundColor: "#1e293b",
-    borderRadius: 12,
     padding: 14,
+    borderRadius: 12,
     color: "#fff",
-    fontSize: 15,
   },
 
   button: {
@@ -145,81 +181,50 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
-    fontSize: 16,
   },
 
-  loaderContainer: {
+  progressContainer: {
     marginTop: 20,
-    alignItems: "center",
   },
 
-  loadingText: {
-    marginTop: 10,
-    color: "#ccc",
+  progressText: {
+    color: "#fff",
+    marginBottom: 8,
   },
 
-  roadmapCard: {
-    marginTop: 20,
+  progressBar: {
+    height: 10,
     backgroundColor: "#1e293b",
-    padding: 18,
-    borderRadius: 16,
+    borderRadius: 10,
   },
 
-  placeholderCard: {
-    marginTop: 20,
-    backgroundColor: "#1e293b",
-    padding: 18,
-    borderRadius: 16,
+  progressFill: {
+    height: 10,
+    backgroundColor: "#4f46e5",
+    borderRadius: 10,
+  },
+
+  taskItem: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#1e293b",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
   },
 
-  placeholderText: {
-    color: "#aaa",
+  checkbox: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+
+  taskText: {
+    color: "#fff",
+    flex: 1,
+  },
+
+  completedText: {
+    textDecorationLine: "line-through",
+    color: "#888",
   },
 });
-const markdownStyles = {
-  body: {
-    color: "#ffffff",
-    fontSize: 15,
-    lineHeight: 24,
-  },
-
-  heading1: {
-    color: "#ffffff",
-    fontSize: 22,
-    marginBottom: 12,
-    fontWeight: "bold",
-  },
-
-  heading2: {
-    color: "#ffffff",
-    fontSize: 18,
-    marginBottom: 8,
-    marginTop: 10,
-    fontWeight: "600",
-  },
-
-  bullet_list: {
-    marginVertical: 6,
-  },
-
-  list_item: {
-    marginVertical: 4,
-  },
-
-  strong: {
-    color: "#ffffff",
-    fontWeight: "bold",
-  },
-
-  // 🔥 Clean inline code (NO background)
-  code_inline: {
-    color: "#60a5fa",   // soft blue highlight
-    fontWeight: "500",
-  },
-
-  // 🔥 Remove block styling completely
-  code_block: {
-    color: "#60a5fa",
-  },
-};
