@@ -1,8 +1,10 @@
-const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+import Config from 'react-native-config';
+
+const GEMINI_API_KEY = Config.GEMINI_API_KEY;
 
 console.log("🤖 GEMINI SERVICE INITIALIZED");
 
-export const askGemini = async (prompt) => {
+export const askGemini = async (prompt, signal) => {
   console.log("🔄 askGemini called with prompt:", prompt.substring(0, 50) + "...");
 
   try {
@@ -21,6 +23,7 @@ export const askGemini = async (prompt) => {
             },
           ],
         }),
+        signal, // Add the abort signal
       }
     );
 
@@ -47,6 +50,10 @@ export const askGemini = async (prompt) => {
     return text;
 
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log("🛑 Gemini request aborted");
+      throw error; // Re-throw to handle in ChatScreen
+    }
     console.error("❌ Gemini Network Error:", error);
     console.error("📡 Error details:", error.message);
     return "Error connecting to AI.";
